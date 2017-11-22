@@ -1,0 +1,610 @@
+from tkinter import *
+from tkinter import messagebox
+import math
+
+
+class App:
+    def __init__(self):
+        # Grid
+        self.row = 5
+        self.col = 5
+        self.Gridrowstr = StringVar()
+        self.Gridcolstr = StringVar()
+        self.gwidth = 700
+        self.gheight = 700
+
+        # Reward
+        self.goal = [1, 5]
+        self.goalReward = 100.0
+        self.normalReward = -1.0
+        self.goalrowstr = StringVar()
+        self.goalcolstr = StringVar()
+        self.goalRewardstr = StringVar()
+        self.normalRewardstr = StringVar()
+        self.modifyflag = 'normal'
+
+        # Learing and Transition
+        self.learing = 0.9
+        self.transition = 0.8
+        self.learingstr = StringVar()
+        self.transitionstr = StringVar()
+
+        # Reward
+        self.absoring = [2, 5]
+        self.absorReward = -100.0
+        self.absorrowstr = StringVar()
+        self.absorcolstr = StringVar()
+        self.absorRewardstr = StringVar()
+
+        # Obstacle
+        self.obstacles = [(4, 2)]
+        self.Obstaclesstr = StringVar()
+
+        self.grid = []
+        self.stats = []
+        self.transitionmatrix = []
+        # 0:East 1:West 2:South  3:North
+        self.actions = [0, 1, 2, 3]
+        # self.policy = {stat:(v,a)}
+        self.policy = {}
+        self.threshold = 0.00000001
+        self.reward = []
+
+
+
+
+    def gui(self, root):
+        # root = Tk()
+        root.geometry('920x720')
+        # 窗口大小，固定大小
+        root.resizable(width=FALSE, height=FALSE)
+        Title = LabelFrame(root, bd=2, bg='white')
+        Title.grid(row=0, column=0, sticky=W + E)
+        titlelab = Label(Title, text="UI", bg='white').pack()
+
+        # Reward Frame
+        Reward = LabelFrame(root, bd=2)
+        Reward.grid(row=1, column=0, rowspan=5, sticky=W + E + S + N)
+        titlelab = Label(Reward, text="Reward").grid(row=0, column=0)
+
+        RRowLab = Label(Reward, text="row").grid(row=2, column=0, sticky=W)
+        self.goalrowstr.set(str(self.goal[0]))
+        RRowEntry = Entry(Reward, textvariable=self.goalrowstr, width=5, state=self.modifyflag)
+        RRowEntry.grid(row=2, column=1)
+
+        RColumnLab = Label(Reward, text="column").grid(row=3, column=0, sticky=W)
+        self.goalcolstr.set(str(self.goal[1]))
+        RColumnEntry = Entry(Reward, textvariable=self.goalcolstr, width=5, state=self.modifyflag)
+        RColumnEntry.grid(row=3, column=1)
+
+        RRewardLab = Label(Reward, text="value").grid(row=4, column=0, sticky=W)
+        self.goalRewardstr.set(str(self.goalReward))
+        RRewardEntry = Entry(Reward, textvariable=self.goalRewardstr, width=5, state=self.modifyflag)
+        RRewardEntry.grid(row=4, column=1)
+
+        ROtherRewardLab = Label(Reward, text="reward for \nother stats").grid(row=2, column=3, sticky=W)
+        self.normalRewardstr.set(str(self.normalReward))
+        ROtherRewardEntry = Entry(Reward, textvariable=self.normalRewardstr, width=5, state=self.modifyflag)
+        ROtherRewardEntry.grid(row=2, column=4)
+
+        # Learning factor and Transition Frame
+        Probfactor = LabelFrame(root, bd=2)
+        Probfactor.grid(row=6, column=0, rowspan=2, sticky=W + E + S + N)
+
+        LearningLab = Label(Probfactor, text="Learning factor").grid(row=0, column=0, sticky=W)
+        self.learingstr.set(str(self.learing))
+        LearninEntry = Entry(Probfactor, textvariable=self.learingstr, width=5, state=self.modifyflag)
+        LearninEntry.grid(row=0, column=1)
+
+        TransitionLab = Label(Probfactor, text="Transition probability").grid(row=1, column=0, sticky=W)
+        self.transitionstr.set(str(self.transition))
+        TransitionEntry = Entry(Probfactor, textvariable=self.transitionstr, width=5, state=self.modifyflag)
+        TransitionEntry.grid(row=1, column=1)
+
+        # absoring Frame
+        Absoring = LabelFrame(root, bd=2)
+        Absoring.grid(row=8, column=0, rowspan=4, sticky=W + E + S + N)
+
+        absoringLab = Label(Absoring, text="Absoring").grid(row=0, column=0)
+
+        ARowLab = Label(Absoring, text="row").grid(row=2, column=0, sticky=W)
+        self.absorrowstr.set(str(self.absoring[0]))
+        ARowEntry = Entry(Absoring, textvariable=self.absorrowstr, width=5, state=self.modifyflag)
+        ARowEntry.grid(row=2, column=1)
+
+        AColumnLab = Label(Absoring, text="column").grid(row=3, column=0, sticky=W)
+        self.absorcolstr.set(str(self.absoring[1]))
+        AColumnEntry = Entry(Absoring, textvariable=self.absorcolstr, width=5, state=self.modifyflag)
+        AColumnEntry.grid(row=3, column=1)
+
+        ARewardLab = Label(Absoring, text="value").grid(row=4, column=0, sticky=W)
+        self.absorRewardstr.set(str(self.absorReward))
+        ARewardEntry = Entry(Absoring, textvariable=self.absorRewardstr, width=5, state=self.modifyflag)
+        ARewardEntry.grid(row=4, column=1)
+
+        # Obstacle Frame
+        Obstacle = LabelFrame(root, bd=2)
+        Obstacle.grid(row=12, column=0, rowspan=3, sticky=W + E + S + N)
+
+        ObstacleLab = Label(Obstacle, text="Obstacle").grid(row=0, column=0, sticky=W)
+
+        ObstaclesLab = Label(Obstacle, text="Input Obstacle([(x1,y1),(x2,y2)]):").grid(row=1, column=0, sticky=W)
+        self.Obstaclesstr.set(str(self.obstacles))
+        ObstaclesEntry = Entry(Obstacle, textvariable=self.Obstaclesstr, state=self.modifyflag)
+        ObstaclesEntry.grid(row=2, column=0, rowspan=2, sticky=W + E + N + S)
+
+        # Obstacle Frame
+        Grid = LabelFrame(root, bd=2)
+        Grid.grid(row=15, column=0, rowspan=3, sticky=W + E + S + N)
+
+        GridLab = Label(Grid, text="Dimension of the grid").grid(row=0, column=0, sticky=W)
+
+        GridRowLab = Label(Grid, text="row:").grid(row=1, column=0, sticky=W)
+        self.Gridrowstr.set(str(self.row))
+        GridRowEntry = Entry(Grid, textvariable=self.Gridrowstr, width=5, state=self.modifyflag)
+        GridRowEntry.grid(row=2, column=0, sticky=W)
+
+        GridColLab = Label(Grid, text="column:").grid(row=1, column=1, sticky=W)
+        self.Gridcolstr.set(str(self.col))
+        GridColEntry = Entry(Grid, textvariable=self.Gridcolstr, width=5, state=self.modifyflag)
+        GridColEntry.grid(row=2, column=1, sticky=W)
+
+        # Button Frame
+        Buttons = LabelFrame(root, bd=2)
+        Buttons.grid(row=18, column=0, sticky=W + E)
+
+        button = Button(Buttons, text="Modify",
+                        command=lambda: self.modifyValue(RRowEntry, RColumnEntry, RRewardEntry, ROtherRewardEntry
+                                                         , LearninEntry, TransitionEntry
+                                                         , ARowEntry, AColumnEntry, ARewardEntry
+                                                         , ObstaclesEntry
+                                                         , GridRowEntry, GridColEntry)).pack()
+
+    def drawGrid(self):
+
+        app.setStat()
+        app.setTransitionMatrix()
+        app.computePolicy()
+
+        can = Canvas(root, width=self.gwidth, height=self.gheight)
+        can.grid(row=0, column=5, rowspan=21)
+        x0 = 2
+        y0 = 2
+
+        h = (self.gheight - 2) // self.row
+        w = (self.gwidth - 2) // self.col
+
+        for i in range(self.row):
+            y = y0 + h * i
+            for j in range(self.col):
+                x = x0 + w * j
+                stat = self.grid[i][j]
+                states = 'stat:' + str(self.grid[i][j])
+
+                if stat >= 0:
+                    count = 'Vπ:' + str(self.policy[stat][0])
+                    action = self.policy[stat][1]
+
+
+                if i == self.goal[0] - 1 and j == self.goal[1] - 1:
+                    color = 'red'
+                    reward = 'reward:' + str(self.goalReward)
+
+
+                elif i == self.absoring[0] - 1 and j == self.absoring[1] - 1:
+                    color = 'blue'
+                    reward = 'reward:' + str(self.absorReward)
+
+                elif (i + 1, j + 1) in self.obstacles:
+                    color = 'gray'
+                    states = ''
+                    reward = ''
+                    count = ''
+                    action = -1
+                else:
+                    color = 'white'
+                    reward = 'reward:' + str(self.normalReward)
+                can.create_rectangle(x, y, x + w, y + h, width=0.9, fill=color)
+                can.create_text(x + w // 2, y + h // 5, text=states, font='1')
+                can.create_text(x + w // 2, y + 2 * h // 5, text=reward, font='1')
+                can.create_text(x + w // 2, y + 3 * h // 5, text=count, font='1')
+
+                if action == 0:
+                    can.create_line(x + w // 2, y +  h // 2, x + w  , y +  h // 2  , arrow=LAST)
+                elif action == 1:
+                    can.create_line(x + w // 2, y +  h // 2, x  , y +  h // 2  , arrow=LAST)
+                elif action == 2:
+                    can.create_line(x + w // 2, y +  h // 2, x + w // 2 , y+ h   , arrow=LAST)
+                elif action == 3:
+                    can.create_line(x + w // 2, y +  h // 2, x + w // 2 , y  , arrow=LAST)
+
+
+
+    def setStat(self):
+        stats = 0
+        self.grid = []
+        self.policy = {}
+        self.reward = []
+
+        for i in range(self.row):
+            rowstat = []
+            for j in range(self.col):
+                if (i + 1, j + 1) in self.obstacles:
+                    if (i,j) == (0,0):
+                        rowstat.append(-self.col * self.col)
+                    else:
+                        rowstat.append(-stats)
+                    continue
+                rowstat.append(stats)
+                # self.policy = {stat:(v,a)}
+
+
+                if [i + 1, j + 1] == self.goal:
+                    self.reward.append(self.goalReward)
+                    self.policy[stats] = (self.goalReward, -1)
+                elif [i + 1, j + 1] == self.absoring:
+                    self.reward.append(self.absorReward)
+                    self.policy[stats] = (self.absorReward, -1)
+                else:
+                    self.reward.append(self.normalReward)
+                    self.policy[stats] = (0.0, -1)
+
+
+                stats += 1
+            self.grid.append(rowstat)
+
+
+
+    def setTransitionMatrix(self):
+
+        self.transitionmatrix = []
+        stats = self.grid[self.row - 1][self.col - 1] - 2
+        goalstat = self.grid[self.goal[0] - 1][self.goal[1] - 1]
+        absoringstat = self.grid[self.absoring[0] - 1][self.absoring[1] - 1]
+        goaltootherprob = 1.0 / stats
+
+        otherprob = (100 - self.transition * 100) / 200
+        # 0:East 1:West 2:South  3:North
+        for action in self.actions:
+            transtion = []
+            for i in range(self.row):
+                for j in range(self.col):
+                    if (i + 1, j + 1) in self.obstacles:
+                        continue
+                    if [i + 1, j + 1] == self.goal or [i + 1, j + 1] == self.absoring:
+                        stattranstion = [goaltootherprob] * (self.row * self.col - len(self.obstacles))
+                        stattranstion[goalstat] = 0.0
+                        stattranstion[absoringstat] = 0.0
+                        transtion.append(stattranstion)
+                        continue
+
+                    stattranstion = [0.0] * (self.row * self.col - len(self.obstacles))
+                    stat = self.grid[i][j]
+
+                    if stat < 0:
+                        continue
+
+                    if j != self.col - 1:
+                        stattoe = self.grid[i][j + 1]
+                    if j != 0:
+                        stattow = self.grid[i][j - 1]
+                    if i != self.row - 1:
+                        stattos = self.grid[i + 1][j]
+                    if i != 0:
+                        statton = self.grid[i - 1][j]
+
+
+
+                    if action == 0 or action == 1:
+                        # to north
+
+                        if i == 0 or statton < 0:
+                            stattranstion[stat] = stattranstion[stat] + otherprob
+                        else:
+                            stattranstion[statton] = stattranstion[statton] + otherprob
+                        # to south
+                        if i == self.row - 1 or stattos < 0:
+                            stattranstion[stat] = stattranstion[stat] + otherprob
+                        else:
+
+                            stattranstion[stattos] = stattranstion[stattos] + otherprob
+
+                    if action == 0:
+                        # to east
+                        if j == self.col - 1 or stattoe < 0:
+                            stattranstion[stat] = stattranstion[stat] + self.transition
+                        else:
+                            stattranstion[stattoe] = stattranstion[stattoe] + self.transition
+
+                    if action == 1:
+                        # to west
+                        if j == 0 or stattow < 0:
+                            stattranstion[stat] = stattranstion[stat] + self.transition
+                        else:
+                            stattranstion[stattow] = stattranstion[stattow] + self.transition
+
+                    if action == 2 or action == 3:
+                        # to west
+                        if j == 0 or stattow < 0:
+                            stattranstion[stat] = stattranstion[stat] + otherprob
+                        else:
+                            stattranstion[stattow] = stattranstion[stattow] + otherprob
+
+                        # to east
+                        if j == self.col - 1 or stattoe < 0:
+                            stattranstion[stat] = stattranstion[stat] + otherprob
+                        else:
+                            stattranstion[stattoe] = stattranstion[stattoe] + otherprob
+
+                    if action == 2:
+                        # to south
+                        if i == self.row - 1 or stattos < 0:
+                            stattranstion[stat] = stattranstion[stat] + self.transition
+                        else:
+                            stattranstion[stattos] = stattranstion[stattos] + self.transition
+
+                    if action == 3:
+                        # to north
+                        if i == 0 or statton < 0:
+                            stattranstion[stat] = stattranstion[stat] + self.transition
+                        else:
+                            stattranstion[statton] = stattranstion[statton] + self.transition
+
+                    transtion.append(stattranstion)
+            self.transitionmatrix.append(transtion)
+
+    def computePolicy(self):
+
+        goalstat = self.grid[self.goal[0] - 1][self.goal[1] - 1]
+        absoringstat = self.grid[self.absoring[0] - 1][self.absoring[1] - 1]
+        stats = self.row * self.col - 1 - len(self.obstacles)
+
+        while True:
+            deltaOneIteration = 0
+
+            self.threshold
+            # self.policy = {stat:(v,a)}
+
+            for i in range(stats + 1):
+                if i != goalstat and  i != absoringstat:
+                    vhistory = self.policy[i][0]
+                    maxV = self.getMaxV(i)
+                    value = self.reward[i] + self.learing * maxV[0]
+                    self.policy[i] = (round(value, 2),maxV[1])
+                    deltaOneIteration += math.pow(self.policy[i][0] - vhistory, 2)
+
+            if deltaOneIteration < self.threshold :
+                break
+
+
+
+
+    def getMaxV(self,stat):
+        max = 2 * self.absorReward
+        maxaction = 0
+
+        for action in self.actions:
+            value = 0.0
+
+
+
+            for i in range(len(self.transitionmatrix[action][stat])):
+                value += self.transitionmatrix[action][stat][i] * self.policy[i][0]
+
+            if value > max :
+                max = value
+                maxaction = action
+
+        return max,maxaction
+
+
+
+
+
+
+    def modifyValue(self, RRowEntry, RColumnEntry, RRewardEntry, ROtherRewardEntry
+                    , LearninEntry, TransitionEntry
+                    , ARowEntry, AColumnEntry, ARewardEntry
+                    , ObstaclesEntry
+                    , GridRowEntry, GridColEntry):
+
+        try:
+            gridrow = int(GridRowEntry.get())
+        except Exception as e:
+            messagebox.showerror('Row error', 'The value of the row between 2 and 5')
+            GridRowEntry.focus_set()
+            return
+
+        if gridrow > 5 or gridrow < 2:
+            messagebox.showerror('Row error', 'The value of the row between 2 and 5')
+            GridRowEntry.focus_set()
+        else:
+            self.row = gridrow
+
+        try:
+            gridcol = int(GridColEntry.get())
+        except Exception as e:
+            messagebox.showerror('Column error', 'The value of the column between 2 and 5')
+            GridColEntry.focus_set()
+            return
+
+        if gridcol > 5 or gridcol < 2:
+            messagebox.showerror('Column error', 'The value of the column between 2 and 5')
+            GridColEntry.focus_set()
+        else:
+            self.col = gridcol
+
+
+
+        try:
+            rewardrow = int(RRowEntry.get())
+        except Exception as e:
+            messagebox.showerror('Row error',
+                                 'The value of the row must be Integer, and less than or equal to ' + str(self.row))
+            RRowEntry.focus_set()
+            return
+
+        if rewardrow > self.row:
+            messagebox.showerror('Row error', 'The value of the row must be less than or equal to ' + str(self.row))
+            RRowEntry.focus_set()
+            return
+
+        try:
+            rewardcol = int(RColumnEntry.get())
+        except Exception as e:
+            messagebox.showerror('Column error',
+                                 'The value of the column must be Integer, and less than or equal to ' + str(self.col))
+            RColumnEntry.focus_set()
+            return
+
+        if rewardcol > self.col:
+            messagebox.showerror('Column error',
+                                 'The value of the column  must be less than or equal to ' + str(self.col))
+            RColumnEntry.focus_set()
+            return
+
+
+
+        self.goal = [rewardrow, rewardcol]
+
+        try:
+            areward = getdouble(RRewardEntry.get())
+        except Exception as e:
+            messagebox.showerror('Value error', 'The value must be double type')
+            RRewardEntry.focus_set()
+            return
+
+        self.goalReward = areward
+
+        try:
+            areward = getdouble(ROtherRewardEntry.get())
+        except Exception as e:
+            messagebox.showerror('Value error', 'The value must be double type')
+            ROtherRewardEntry.focus_set()
+            return
+
+        self.normalReward = areward
+
+
+
+        try:
+            learning = getdouble(LearninEntry.get())
+        except Exception as e:
+            messagebox.showerror('Learning factor error',
+                                 'The value of Learning factor must be Double, and between 0 and 1([0,1]) ')
+            LearninEntry.focus_set()
+            return
+
+        if learning > 1 or learning < 0:
+            messagebox.showerror('Learning factor error',
+                                 'The value of Learning factor must be Double, and between 0 and 1([0,1]) ')
+            ARowEntry.focus_set()
+            return
+        self.learing = learning
+
+        try:
+            transition = getdouble(TransitionEntry.get())
+        except Exception as e:
+            messagebox.showerror('Transition probability error',
+                                 'The value of Transition probability must be Double, and between 0 and 1([0,1]) ')
+            TransitionEntry.focus_set()
+            return
+
+        if transition > 1 or transition < 0:
+            messagebox.showerror('Transition probability error',
+                                 'The value of Transition probability must be Double, and between 0 and 1([0,1]) ')
+            ARowEntry.focus_set()
+            return
+
+        self.transition = transition
+
+        try:
+            abrow = int(ARowEntry.get())
+        except Exception as e:
+            messagebox.showerror('Row error',
+                                 'The value of the row must be Integer, and less than or equal to ' + str(self.row))
+            ARowEntry.focus_set()
+            return
+
+        if abrow > self.row:
+            messagebox.showerror('Row error', 'The value of the row must be less than or equal to ' + str(self.row))
+            ARowEntry.focus_set()
+            return
+
+        try:
+            abcol = int(AColumnEntry.get())
+        except Exception as e:
+            messagebox.showerror('Column error',
+                                 'The value of the column must be Integer, and less than or equal to ' + str(self.col))
+            AColumnEntry.focus_set()
+            return
+
+        if abcol > self.col:
+            messagebox.showerror('Column error',
+                                 'The value of the column  must be less than or equal to ' + str(self.col))
+            AColumnEntry.focus_set()
+            return
+
+
+        if [abrow, abcol] == [rewardrow, rewardcol]:
+            messagebox.showerror('Absoring error',
+                                 'The value of Absoring can not be the same  as the point of the goal: ' + str(self.goal))
+            AColumnEntry.focus_set()
+            return
+
+
+        self.absoring = [abrow, abcol]
+
+        try:
+            areward = getdouble(ARewardEntry.get())
+        except Exception as e:
+            messagebox.showerror('Value error', 'The value must be double type')
+            ARewardEntry.focus_set()
+            return
+
+        self.absorReward = areward
+
+        try:
+            obstacle = eval(ObstaclesEntry.get())
+        except Exception as e:
+            messagebox.showerror('Obstacle error', 'The value of the obstacle format is wrong')
+            ObstaclesEntry.focus_set()
+            return
+
+        stats =  self.row * self.col  - 2
+        if len(obstacle) > stats - 2:
+            messagebox.showerror('Obstacle error', 'The number of the obstacle  can not be greater than '+ str(stats - 2) )
+            ObstaclesEntry.focus_set()
+            return
+
+        for i in range(len(obstacle)):
+            if obstacle[i][0] > self.row or obstacle[i][1] > self.col:
+                messagebox.showerror('Obstacle error', 'The value of the obstacle format can not greater than ('
+                                     + str(self.row) + ',' + str(self.col) + ')')
+                ObstaclesEntry.focus_set()
+                return
+
+            if obstacle[i] == (abrow, abcol) or obstacle[i] == (rewardrow, rewardcol):
+                messagebox.showerror('Obstacle error',
+                                     'The value of the obstacle  can not be the same as the goal '
+                                     '(' + str(rewardrow) + ',' + str(rewardcol) + ') and the absoring:'
+                                                                         '(' + str(abrow) + ',' + str(abcol) + ')')
+
+
+                ObstaclesEntry.focus_set()
+                return
+
+
+        self.obstacles = obstacle
+
+
+
+
+        self.drawGrid()
+
+
+root = Tk()
+app = App()
+app.gui(root)
+app.drawGrid()
+root.mainloop()
